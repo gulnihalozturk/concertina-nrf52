@@ -1,0 +1,11 @@
+# build outputs (make, make results, make host)
+/build/
+__pycache__/
+*.pyc
+# LaTeX by-products
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.synctex.gz

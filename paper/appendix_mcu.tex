@@ -1,0 +1,470 @@
+% GENERATED from appendix_mcu.in.tex by tools/make_tables.py
+% Appendix of the paper: microcontroller implementations on the nRF52840 and
+% the nRF52832. It is placed after \appendix and before the references, and
+% refers to Sections~\ref{subsec:minimality}, \ref{subsec:usecases} and
+% \ref{sec:performance} of the paper. Every number in this file is filled in
+% by tools/make_tables.py from results/nrf52840/ and results/nrf52832/ (fields
+% in double angle brackets; the values are listed in results/values.txt), the
+% tables as well.
+% Bibliography keys: nrf52840cryptocell, nrf52832ecb, armCortexM4TRM and HCTR2
+% are those of the paper; wolfSSLCC310, TFM-cc3xx, Unicorn, BearSSL and
+% ShoupGCM are in paper/mcu_refs.bib.
+% TODO(authors): once run on boards, replace the estimated cycles by the DWT
+% cycle counts that the same firmware prints (see the README) and drop the
+% estimation paragraphs that no longer apply.
+
+\section{Microcontroller Implementations}
+\label{app:mcu}
+
+This appendix complements the measurements of Section~\ref{sec:performance}
+with the two devices of Section~\ref{subsec:usecases}. We implemented both
+modes for these two microcontrollers of the Nordic nRF52 series, which share
+the same Arm Cortex-M4F core at 64~MHz, without instructions for AES, SHA-2,
+SHA-3 or carry-less multiplication~\cite{armCortexM4TRM}, and differ in their
+cryptographic hardware (Table~\ref{tab:mcu-devices}). The
+nRF52840~\cite{nrf52840cryptocell} contains an Arm CryptoCell-310 coprocessor that
+computes AES-128 in both directions and SHA-256, but has no GHASH unit (its
+AES engine supports the ECB, CBC, CTR, CMAC and CCM modes, not GCM), so
+POLYVAL must be computed in software: it is a device with SHA-2 and AES
+hardware that lacks carry-less multiplication. The
+nRF52832~\cite{nrf52832ecb} only has an AES-128 peripheral that encrypts single
+blocks (ECB), and no hash hardware: it is a device with forward-only AES. In
+each case, we give every mode the hardware support it can use.
+
+\begin{table}[!hbt]
+\caption{The two devices and the hardware used by each mode. Both have an Arm
+Cortex-M4F core at 64~MHz without instructions for AES, SHA-2, SHA-3 or
+carry-less multiplication.}
+\label{tab:mcu-devices}
+\centering
+\scriptsize
+\renewcommand{\arraystretch}{1.25}
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{>{\raggedright\arraybackslash}p{1.9cm} >{\raggedright\arraybackslash}p{4.75cm} >{\raggedright\arraybackslash}p{4.75cm}}
+\hline
+ & nRF52840 & nRF52832 \\
+\hline\hline
+Memory & 1~MiB flash, 256~KiB RAM & 512~KiB flash, 64~KiB RAM \\
+AES hardware & CryptoCell-310: AES-128, encryption and decryption; ECB
+  peripheral (encryption) & ECB peripheral: AES-128, encryption of single
+  blocks only \\
+Hash hardware & CryptoCell-310: SHA-1, SHA-224, SHA-256 & none \\
+Carry-less multiplication & none & none \\
+\hline
+Concertina & AES and SHA-256 compression on the CryptoCell; HMAC-SHA3-256 with
+  Keccak-$f$ in software & AES on the ECB peripheral; HMAC in software \\
+HCTR2 & AES (both directions) on the CryptoCell; POLYVAL in software &
+  forward AES on the ECB peripheral; POLYVAL and the inverse cipher (one
+  block per decryption) in software \\
+\hline
+\end{tabular}
+\end{table}
+
+\paragraph{Implementation.}
+All modes share one AES layer with a backend for each AES unit, a 32-bit
+table implementation in software, and AES-XTS is listed as a narrow-block
+reference. The CryptoCell is driven through its documented registers by a
+bare-metal driver: AES-128 in ECB mode over DMA, encrypting or decrypting up
+to 16 blocks per transfer, and the SHA-256 compression function, loaded with
+a chaining value and fed whole blocks over DMA without hardware padding.
+Neither the counter of Concertina, $E_K(S \oplus \langle i \rangle)$, nor the
+XCTR counter of HCTR2, $E_K(S \oplus \mathrm{le64}(i))$, is the CTR mode of
+the CryptoCell, so both modes prepare their counter blocks on the CPU and
+encrypt them in batches of 16. HMAC-SHA-256 keeps its precomputed inner and
+outer states and pads in software, so that each of the two HMAC evaluations
+of a message costs two or three DMA transfers (the whole blocks of the
+input, the padded last block or blocks, and the outer hash); the KDF of the
+key setup uses the same HMAC. The ECB peripheral
+processes one block per operation. HMAC-SHA3-256 uses a bit-interleaved
+Keccak-$f$ in software on both chips. For HCTR2, we measure three POLYVAL
+implementations: a constant-time one with $32 \times 32$-bit
+multiplications on bit-masked operands, Karatsuba multiplication and a
+Montgomery reduction by shifts; and the table-based method of
+Shoup~\cite{ShoupGCM} with 4-bit (256~bytes per key, as in mbed~TLS) and
+8-bit (4~KiB per key) tables, which index memory with secret data. On the
+nRF52832, HCTR2 decryption evaluates its single inverse-cipher block either
+with a table implementation or with the constant-time bitsliced
+implementation of BearSSL~\cite{BearSSL}. As in
+Section~\ref{sec:performance}, HCTR2 was validated against the 96 POLYVAL,
+180 XCTR and 700 HCTR2 test vectors of its reference
+implementation~\cite{HCTR2} and Concertina against its 90 known answers, here
+in every measured configuration (the AES hardware, which supports only
+128-bit keys, with the vectors for AES-128); the firmware runs
+13{,}427 checks on the nRF52840 and 11{,}604 on the nRF52832 before
+timing. The code was compiled with GCC~13.2 (\texttt{-O2
+-fno-schedule-insns}); all measurements use AES-128 and a 16-byte tweak. As
+for the distinguishers of Section~\ref{subsec:minimality}, the firmware, the
+emulator described below and the measurements were developed with the
+assistance of a large language model (Claude, Anthropic); they are part of
+the repository referenced in Section~\ref{sec:performance}.
+
+\paragraph{Measurement method: exact and estimated quantities.}
+Without access to boards, we executed the firmware in an emulator of the two
+chips: an instruction-set emulator of the Cortex-M4 (Unicorn~\cite{Unicorn},
+based on QEMU) with the memory map of each chip and functional models of the
+peripherals the firmware uses. The model of the CryptoCell implements the
+documented register interface of its AES and HASH engines and their DMA
+(register layout from Nordic's device description and product
+specification; key and chaining-value word order as in Arm's drivers for the
+CryptoCell-312~\cite{TFM-cc3xx}, whose registers have the same offsets); it
+rejects accesses that the documentation forbids, such as DMA from flash, and
+computes its results with implementations independent of the firmware. The
+same firmware image is built to run unchanged on the boards, where it prints
+cycle counts. We distinguish three kinds of results.
+\begin{itemize}
+\item \emph{Exact}, in the sense that a board running the same image gives
+the same values: code size, static RAM, context size, peak stack depth
+(measured by painting the stack), the number of executed instructions apart
+from the iterations of the drivers' busy-wait loops (which the emulator
+leaves after one test), and the number and size of the hardware operations
+of each message (for data in RAM, as in the benchmark; the DMA cannot read
+flash, and the driver copies such input through a 256-byte buffer). For
+instance, Concertina with HMAC-SHA-256 on the nRF52840 makes 4 SHA-256 transfers
+(4 blocks) and 4 AES transfers for a
+32-byte message, and 6 SHA-256 transfers
+(130 blocks) and 20 AES transfers
+(258 blocks) for 4096 bytes.
+\item \emph{Established against the models only}: functional
+correctness of the hardware backends. All test vectors pass with every
+backend in the emulator, but the CryptoCell driver has not run on silicon;
+in particular, the order of the chaining-value words and the meaning of the
+hash endianness setting, whose description in Nordic's device file
+contradicts its reset value, are taken from Arm's drivers. The self-tests
+that the firmware runs before timing would detect a mismatch on a board.
+\item \emph{Estimated}: execution time. It is the sum of a CPU part and a
+hardware part. The CPU part converts the executed instructions into cycles
+with the instruction timings of the Cortex-M4 Technical Reference
+Manual~\cite{armCortexM4TRM},
+with a pipeline refill of $P = 1$, 2 or 3 cycles per taken branch; this
+gives between 1.18 and 1.90 cycles per instruction for the
+modes of Table~\ref{tab:mcu-speed}, and does not model flash wait states. The
+hardware part charges each hardware operation a latency, while the CPU waits
+for it (Table~\ref{tab:mcu-latency}): for the ECB peripheral, the typical
+6~$\mu$s per block of the product specification~\cite{nrf52832ecb}; for the CryptoCell, whose
+latencies are not specified, a per-block cost and a per-transfer cost in
+three profiles. The \emph{fast} profile takes the 4 cycles per AES round
+that the AES engine reports in its configuration
+register~\cite{nrf52840cryptocell} and one cycle per SHA-256 round; the
+\emph{central} profile takes the AES-128-CBC and SHA-256 throughputs
+measured by wolfSSL with the CryptoCell of an nRF52840
+board~\cite{wolfSSLCC310}, 17.3 and 25.9~MB/s with 1~MB = $2^{20}$ bytes
+(the unit of wolfCrypt's benchmark), that is 56 cycles per AES block and
+151 cycles per SHA-256 block, which include the overhead of their
+software; the \emph{slow} profile doubles the central one. The cost of a
+transfer (start, completion, pipeline fill) is not documented, and we take
+16, 64 and 256 cycles.
+\end{itemize}
+Table~\ref{tab:mcu-speed} uses $P = 2$ and the central profile. Since the
+CPU part does not depend on the latencies, each time is a linear function of
+them, and the counts of hardware operations give the time under any other
+latency; Table~\ref{tab:mcu-robust} lists the extremes over all combinations.
+The cost per transfer covers only the hardware: the driver code around
+each transfer is executed and counted in the CPU part, and a vendor library
+with locking or power management per call would add to it; we therefore also
+give the break-even transfer cost.
+
+\begin{table}[!hbt]
+\caption{Latencies charged for the hardware operations, in cycles at 64~MHz.
+The CryptoCell profiles are estimates (see text); the central profile is
+used unless stated otherwise.}
+\label{tab:mcu-latency}
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{lrrr}
+\hline
+ & Fast & Central & Slow \\
+\hline\hline
+CryptoCell: per DMA transfer (AES or SHA-256) & 16 & 64 & 256 \\
+CryptoCell: per 16-byte AES-128 block & 40 & 56 & 112 \\
+CryptoCell: per 64-byte SHA-256 block & 64 & 151 & 302 \\
+\hline
+ECB peripheral (nRF52832): per block & 192 & 384 & 768 \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[!hbt]
+\caption{Encryption cost on the nRF52840 and the nRF52832 (Arm Cortex-M4F, 64~MHz) with AES-128 and a 16-byte tweak, in estimated cycles per byte: the CPU cycles of the executed instructions under the Cortex-M4 timing model ($P = 2$), plus the latency of each hardware operation (CryptoCell-310: central profile of Table~\ref{tab:mcu-latency}; ECB peripheral: typical $t_\mathrm{ECB}$ of 6~$\mu$s). The software rows are the same on both chips.}
+\label{tab:mcu-speed}
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrrrrr}
+\hline
+ & \multicolumn{6}{c}{Message length (bytes)} \\
+Mode & 32 & 64 & 256 & 512 & 1024 & 4096 \\
+\hline\hline
+\multicolumn{7}{l}{\emph{nRF52840: AES-128 and SHA-256 on the CryptoCell-310}} \\
+AES-XTS$^\dagger$                                    & 172 & 91.3 & 30.9 & 21.3 & 16.6 & 13.0 \\
+HCTR2, constant-time POLYVAL                         & 197 & 155 & 124 & 119 & 117 & 115 \\
+HCTR2, 4-bit POLYVAL tables                          & 220 & 184 & 157 & 153 & 151 & 150 \\
+HCTR2, 8-bit POLYVAL tables                          & 159 & 113 & 78.1 & 72.9 & 70.2 & 68.3 \\
+Concertina (HMAC-SHA-256)                            & 272 & 146 & 48.3 & 30.8 & 22.1 & 15.5 \\
+Concertina (HMAC-SHA3-256)                           & 2077 & 1048 & 383 & 310 & 273 & 239 \\
+\hline
+\multicolumn{7}{l}{\emph{nRF52832: forward AES-128 on the ECB peripheral}} \\
+AES-XTS$^\dagger$                                    & 61.9 & 48.6 & 38.6 & 37.0 & 36.1 & 35.5 \\
+HCTR2, constant-time POLYVAL                         & 149 & 145 & 142 & 142 & 141 & 141 \\
+HCTR2, 4-bit POLYVAL tables                          & 172 & 174 & 175 & 176 & 176 & 176 \\
+HCTR2, 8-bit POLYVAL tables                          & 111 & 103 & 96.2 & 95.2 & 94.7 & 94.3 \\
+Concertina (HMAC-SHA-256)                            & 541 & 290 & 166 & 145 & 134 & 127 \\
+Concertina (HMAC-SHA3-256)                           & 2042 & 1041 & 401 & 332 & 298 & 265 \\
+\hline
+\multicolumn{7}{l}{\emph{Software only (either chip)}} \\
+AES-XTS$^\dagger$                                    & 95.1 & 76.3 & 62.1 & 59.8 & 58.6 & 57.7 \\
+HCTR2, constant-time POLYVAL                         & 166 & 163 & 160 & 160 & 160 & 160 \\
+HCTR2, 8-bit POLYVAL tables                          & 128 & 120 & 115 & 114 & 113 & 113 \\
+Concertina (HMAC-SHA-256)                            & 582 & 320 & 187 & 165 & 154 & 145 \\
+Concertina (HMAC-SHA3-256)                           & 2082 & 1070 & 423 & 352 & 317 & 284 \\
+\hline
+\multicolumn{7}{l}{\footnotesize $^\dagger$Narrow-block mode, listed as a reference only.}
+\end{tabular}
+\end{table}
+
+\paragraph{nRF52840: AES and SHA-256 in hardware.}
+With both AES and SHA-256 on the CryptoCell, Concertina with HMAC-SHA-256
+needs 15.5 cycles per byte for 4096-byte messages, close to the
+13.0 cycles per byte of AES-XTS. HCTR2 also computes its AES calls
+on the CryptoCell, but POLYVAL remains on the CPU: one block costs
+853 cycles with the constant-time implementation and
+476 with 8-bit tables, and POLYVAL accounts for
+92\% and 87\% of HCTR2 at 4096
+bytes. HCTR2 needs 115, 150 and 68.3
+cycles per byte with the constant-time, 4-bit and 8-bit POLYVAL, so that
+Concertina is 7.4, 9.6 and
+4.4 times as fast at 4096 bytes. The 4-bit tables are
+slower than the constant-time multiplication on this core, whose
+$32 \times 32$-bit multiplier takes a single cycle. Since the CPU
+part of HCTR2 alone amounts to 111 cycles per byte with the
+constant-time POLYVAL and 64.5 with 8-bit tables, no faster
+AES hardware would change this. Conversely, for HCTR2 to match
+Concertina, POLYVAL would have to cost less than about 55
+cycles per 16-byte block at 4096 bytes and 230 at 256 bytes
+(98 and 351 under the least favorable of
+our timing assumptions), against 476 for our fastest
+implementation; at 4096 bytes, this is fewer cycles than the 64 word loads
+and 64 XOR operations of the table lookups alone in Shoup's method with 8-bit
+tables. For short messages, the fixed cost of
+Concertina dominates: its two HMAC evaluations take 4
+SHA-256 transfers and its four Feistel rounds 4
+single-block AES transfers, each with its driver code on the CPU, and at 32
+bytes Concertina needs 272 cycles per byte against 197
+and 159 for HCTR2 with the constant-time and 8-bit POLYVAL.
+Concertina is faster than HCTR2 with the constant-time and the 4-bit POLYVAL
+from 64 bytes on, and than HCTR2 with 8-bit tables from
+256 bytes on.
+HMAC-SHA3-256, without SHA-3 hardware, remains slower than HCTR2 at every
+length (239 cycles per byte at 4096 bytes).
+
+\begin{table}[!hbt]
+\caption{Speed-up of Concertina (HMAC-SHA-256) over HCTR2 (time of HCTR2 divided by that of Concertina; encryption, and decryption in the last row) under all combinations of the CPU timing model ($P = 1, 2, 3$) and the hardware latencies: on the nRF52840 the three CryptoCell profiles of Table~\ref{tab:mcu-latency}, on the nRF52832 $t_\mathrm{ECB}$ = 3, 6 and 12~$\mu$s. Minimum and maximum, rounded outwards; values above 1 favor Concertina.}
+\label{tab:mcu-robust}
+\centering
+\scriptsize
+\renewcommand{\arraystretch}{1.25}
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lrrrrrr}
+\hline
+ & \multicolumn{6}{c}{Message length (bytes)} \\
+POLYVAL of HCTR2 & 32 & 64 & 256 & 512 & 1024 & 4096 \\
+\hline\hline
+\multicolumn{7}{l}{\emph{nRF52840 (CryptoCell-310)}} \\
+Constant-time                                & 0.60--0.81 & 0.85--1.22 & 1.87--3.15 & 2.70--4.92 & 3.54--7.00 & 4.68--10.38 \\
+4-bit tables                                 & 0.67--0.90 & 1.01--1.43 & 2.40--3.92 & 3.52--6.20 & 4.65--8.86 & 6.09--13.20 \\
+8-bit tables                                 & 0.50--0.64 & 0.64--0.86 & 1.24--1.91 & 1.74--2.90 & 2.23--4.05 & 2.86--5.94 \\
+\hline
+\multicolumn{7}{l}{\emph{nRF52832 (ECB peripheral)}} \\
+Constant-time                                & 0.26--0.30 & 0.47--0.53 & 0.83--0.88 & 0.95--1.01 & 1.02--1.09 & 1.07--1.16 \\
+4-bit tables                                 & 0.30--0.34 & 0.59--0.62 & 1.03--1.08 & 1.16--1.24 & 1.25--1.35 & 1.31--1.44 \\
+8-bit tables                                 & 0.19--0.23 & 0.33--0.39 & 0.55--0.63 & 0.62--0.70 & 0.67--0.75 & 0.71--0.79 \\
+Constant-time, with $\mathrm{AES}^{-1}$ (dec.) & 0.71--0.80 & 0.89--1.01 & 1.00--1.10 & 1.04--1.13 & 1.07--1.16 & 1.09--1.17 \\
+\hline
+\end{tabular}
+\end{table}
+
+At the tabulated lengths, these conclusions do not depend on the timing
+assumptions (Table~\ref{tab:mcu-robust}), except at 64 bytes, where the
+order of Concertina and HCTR2 with the constant-time POLYVAL depends on
+them. From 256 bytes on, Concertina is faster than every HCTR2 variant under
+every combination of the CPU model and the CryptoCell profiles, and HCTR2 is
+faster at 32 bytes under every combination; at 4096 bytes, Concertina is
+faster by a factor of 2.86 to
+5.94 against the 8-bit tables and of
+4.68 to 10.38 against the constant-time
+POLYVAL. Equivalently, with the other latencies central,
+Concertina remains faster than HCTR2 with 8-bit tables at 4096 bytes as long
+as a SHA-256 block costs the hardware less than 1{,}813
+cycles, and faster than HCTR2 with the constant-time POLYVAL as long as it
+costs less than 3{,}287 cycles; a SHA-256 compression in
+software takes 2{,}874 cycles on this core. At 256 bytes, the
+break-even costs are 915 and 2{,}087
+cycles per block. Concertina makes more CryptoCell transfers than HCTR2
+(11 against 2 at 256 bytes), so a high
+cost per transfer works against it: with the other latencies central, it
+remains faster than HCTR2 with 8-bit tables as long as a transfer costs less
+than 913 cycles at 256 bytes and 24{,}065
+at 4096 bytes, against our assumption of 16 to
+256.
+
+\paragraph{nRF52832: forward-only AES.}
+On the nRF52832, the ECB peripheral computes the AES calls of both modes,
+and all hashing is done in software. The cost per byte then depends mostly on
+the hash layer: at 4096 bytes, Concertina with HMAC-SHA-256 needs
+127 cycles per byte and HCTR2 141, 176
+and 94.3 with the constant-time, 4-bit and 8-bit POLYVAL.
+Concertina is faster than HCTR2 with the constant-time POLYVAL from
+1024 bytes on and with 4-bit tables from 256 bytes
+on, by factors of 1.12 and 1.39 at
+4096 bytes,
+but slower than HCTR2 with 8-bit tables at every length (a ratio of
+0.75 at 4096 bytes), and several times slower for short
+messages. HCTR2 decryption needs one block of the inverse cipher, which the
+peripheral cannot compute (Table~\ref{tab:mcu-dec}): with a table
+implementation, decryption costs up to 6.6\% more than
+encryption; with the constant-time implementation, which a constant-time
+HCTR2 requires, it costs 8{,}131 cycles per message more than with
+the table implementation, and 177\% more than encryption at 32
+bytes. Against this fully constant-time HCTR2, Concertina decrypts faster
+from 256 bytes on. With HMAC-SHA3-256, Concertina is slower
+than every HCTR2 variant at every length on this chip as well. On this
+device, Concertina is not the faster mode; it avoids the inverse cipher and
+secret-indexed tables.
+
+\begin{table}[!hbt]
+\caption{Decryption cost on the nRF52840 and the nRF52832 (Arm Cortex-M4F, 64~MHz) with AES-128 and a 16-byte tweak, in estimated cycles per byte: the CPU cycles of the executed instructions under the Cortex-M4 timing model ($P = 2$), plus the latency of each hardware operation (CryptoCell-310: central profile of Table~\ref{tab:mcu-latency}; ECB peripheral: typical $t_\mathrm{ECB}$ of 6~$\mu$s). The software rows are the same on both chips.}
+\label{tab:mcu-dec}
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrrrrr}
+\hline
+ & \multicolumn{6}{c}{Message length (bytes)} \\
+Mode & 32 & 64 & 256 & 512 & 1024 & 4096 \\
+\hline\hline
+\multicolumn{7}{l}{\emph{nRF52840: AES-128 and SHA-256 on the CryptoCell-310}} \\
+AES-XTS$^\dagger$                                    & 172 & 91.3 & 30.9 & 21.3 & 16.6 & 13.0 \\
+HCTR2, constant-time POLYVAL                         & 198 & 156 & 124 & 119 & 117 & 115 \\
+HCTR2, 4-bit POLYVAL tables                          & 221 & 185 & 157 & 153 & 151 & 150 \\
+HCTR2, 8-bit POLYVAL tables                          & 160 & 113 & 78.2 & 72.9 & 70.2 & 68.3 \\
+Concertina (HMAC-SHA-256)                            & 273 & 146 & 48.3 & 30.8 & 22.1 & 15.5 \\
+Concertina (HMAC-SHA3-256)                           & 2077 & 1049 & 383 & 310 & 273 & 239 \\
+\hline
+\multicolumn{7}{l}{\emph{nRF52832: forward AES-128 on the ECB peripheral}} \\
+AES-XTS$^\dagger$                                    & 81.4 & 68.1 & 58.1 & 56.5 & 55.6 & 55.0 \\
+HCTR2, table $\mathrm{AES}^{-1}$$^\ddagger$          & 159 & 150 & 143 & 142 & 142 & 141 \\
+HCTR2, constant-time $\mathrm{AES}^{-1}$$^\ddagger$  & 413 & 277 & 175 & 158 & 150 & 143 \\
+HCTR2, 4-bit POLYVAL tables                          & 182 & 179 & 177 & 176 & 176 & 176 \\
+HCTR2, 8-bit POLYVAL tables                          & 121 & 108 & 97.5 & 95.8 & 95.0 & 94.3 \\
+Concertina (HMAC-SHA-256)                            & 542 & 290 & 166 & 145 & 134 & 127 \\
+Concertina (HMAC-SHA3-256)                           & 2042 & 1041 & 401 & 332 & 298 & 265 \\
+\hline
+\multicolumn{7}{l}{\emph{Software only (either chip)}} \\
+AES-XTS$^\dagger$                                    & 92.5 & 73.7 & 59.5 & 57.2 & 56.0 & 55.1 \\
+HCTR2, constant-time POLYVAL                         & 165 & 162 & 160 & 160 & 160 & 160 \\
+HCTR2, 8-bit POLYVAL tables                          & 127 & 120 & 114 & 114 & 113 & 113 \\
+Concertina (HMAC-SHA-256)                            & 582 & 320 & 187 & 165 & 154 & 145 \\
+Concertina (HMAC-SHA3-256)                           & 2083 & 1070 & 423 & 352 & 317 & 284 \\
+\hline
+\multicolumn{7}{l}{\footnotesize $^\dagger$Narrow-block mode, listed as a reference only.} \\
+\multicolumn{7}{l}{\footnotesize $^\ddagger$With the constant-time POLYVAL.}
+\end{tabular}
+\end{table}
+
+\begin{table}[!hbt]
+\caption{Memory footprint with AES-128, in bytes: flash for key setup, encryption and decryption (including the hardware drivers); static RAM (tables, DMA buffers); per-key context; peak stack depth; and their sum (RAM). Each configuration is built with only the backends it uses; on the nRF52832, the tables of HCTR2's table-based inverse cipher are kept in flash (one block per decryption), those of AES-XTS in RAM. Key setup in $\mu$s at 64~MHz, estimated as in Table~\ref{tab:mcu-speed}.}
+\label{tab:mcu-memory}
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{lrrrrrr}
+\hline
+Mode & Flash & Static & Context & Stack & RAM & Key setup \\
+\hline\hline
+\multicolumn{7}{l}{\emph{nRF52840: AES-128 and SHA-256 on the CryptoCell-310}} \\
+AES-XTS$^\dagger$                                    & 1{,}940 & 516 & 72 & 448 & 1{,}036 & 3.77 \\
+HCTR2, constant-time POLYVAL                         & 5{,}308 & 516 & 260 & 472 & 1{,}248 & 49.8 \\
+HCTR2, 4-bit POLYVAL tables                          & 2{,}864 & 516 & 372 & 320 & 1{,}208 & 64.1 \\
+HCTR2, 8-bit POLYVAL tables                          & 3{,}360 & 516 & 4{,}212 & 320 & 5{,}048 & 218 \\
+Concertina (HMAC-SHA-256)                            & 4{,}200 & 516 & 192 & 904 & 1{,}612 & 304 \\
+Concertina (HMAC-SHA3-256)                           & 7{,}656 & 516 & 536 & 1{,}908 & 2{,}960 & 3{,}998 \\
+\hline
+\multicolumn{7}{l}{\emph{nRF52832: forward AES-128 on the ECB peripheral}} \\
+AES-XTS$^\dagger$                                    & 2{,}268 & 1{,}592 & 232 & 496 & 2{,}320 & 76.5 \\
+HCTR2, table $\mathrm{AES}^{-1}$$^\ddagger$          & 7{,}100 & 48 & 420 & 472 & 940 & 121 \\
+HCTR2, constant-time $\mathrm{AES}^{-1}$$^\ddagger$  & 7{,}112 & 48 & 596 & 1{,}000 & 1{,}644 & 236 \\
+HCTR2, 4-bit POLYVAL tables                          & 4{,}656 & 48 & 532 & 336 & 916 & 135 \\
+HCTR2, 8-bit POLYVAL tables                          & 5{,}148 & 48 & 4{,}372 & 336 & 4{,}756 & 288 \\
+Concertina (HMAC-SHA-256)                            & 4{,}448 & 48 & 192 & 1{,}308 & 1{,}548 & 901 \\
+Concertina (HMAC-SHA3-256)                           & 7{,}224 & 48 & 536 & 1{,}908 & 2{,}492 & 3{,}998 \\
+\hline
+\multicolumn{7}{l}{\emph{Software only (nRF52840 build)}} \\
+AES-XTS$^\dagger$                                    & 2{,}716 & 2{,}312 & 584 & 320 & 3{,}216 & 111 \\
+HCTR2, constant-time POLYVAL                         & 6{,}636 & 2{,}312 & 596 & 472 & 3{,}380 & 158 \\
+HCTR2, 8-bit POLYVAL tables                          & 4{,}684 & 2{,}312 & 4{,}548 & 400 & 7{,}260 & 326 \\
+Concertina (HMAC-SHA-256)                            & 5{,}324 & 1{,}028 & 1{,}072 & 1{,}308 & 3{,}408 & 980 \\
+Concertina (HMAC-SHA3-256)                           & 8{,}096 & 1{,}028 & 1{,}416 & 1{,}908 & 4{,}352 & 4{,}077 \\
+\hline
+\multicolumn{7}{l}{\footnotesize $^\dagger$Narrow-block mode, listed as a reference only. $^\ddagger$With the constant-time POLYVAL.}
+\end{tabular}
+\end{table}
+
+\paragraph{Memory.}
+Table~\ref{tab:mcu-memory} lists the memory footprint of each
+configuration, built with only the backends it uses; RAM is the sum of the
+static data, the context and the peak stack depth. With the CryptoCell, the
+footprints of the two modes are of the same order. Concertina with
+HMAC-SHA-256 needs 4{,}200 bytes of flash and
+1{,}612 bytes of RAM, against
+5{,}308 and 1{,}248 for HCTR2 with the
+constant-time POLYVAL, whose unrolled multiplication dominates its code
+size, 2{,}864 and 1{,}208 with 4-bit
+tables, and 3{,}360 and 5{,}048 with
+8-bit tables, which add 4~KiB to every key context. Concertina needs more
+stack (904 bytes, for the HMAC computations)
+and a smaller context (192 bytes). On the
+nRF52832, Concertina needs no AES software at all, since it never uses the
+inverse cipher, and stores its working keys unexpanded: with HMAC-SHA-256 it
+takes 4{,}448 bytes of flash and
+1{,}548 bytes of RAM, of which
+1{,}308 are stack, mostly for the software
+SHA-256. HCTR2 must keep a software inverse cipher for decryption. With
+its tables in flash, since it is used for one block per decryption, HCTR2
+needs 7{,}100 bytes of flash and 940
+bytes of RAM with the constant-time POLYVAL, 4{,}656 and
+916 with 4-bit tables, and 5{,}148
+and 4{,}756 with 8-bit tables; with the constant-time
+inverse cipher, it needs 7{,}112 and
+1{,}644 bytes. Concertina thus needs the least flash on
+this chip, more RAM than HCTR2 with a table-based inverse cipher, and less
+than the fully constant-time HCTR2 or HCTR2 with 8-bit tables. Key setup takes
+304~$\mu$s for Concertina with
+HMAC-SHA-256 on the CryptoCell and 901~$\mu$s
+on the nRF52832, where the KDF runs in software, against
+49.8 and 121~$\mu$s for HCTR2
+with the constant-time POLYVAL; with HMAC-SHA3-256 it takes about
+4.0~ms on either chip.
+
+\paragraph{Summary.}
+The nRF52840 is an existing device with SHA-2 and AES hardware but without
+carry-less multiplication. On it, Concertina instantiated with HMAC-SHA-256
+outperforms HCTR2 for messages of 256 bytes and more, at the tabulated
+lengths and under every timing assumption we considered, both against a
+constant-time and against table-based POLYVAL implementations: at 4096
+bytes by a factor of 4.4 against 8-bit tables,
+7.4 against the constant-time POLYVAL and
+9.6 against 4-bit tables with the central assumptions.
+HCTR2 remains faster for 32-byte messages, and the memory footprints of the
+two modes are of the same order. With HMAC-SHA3-256, for which neither chip
+has hardware, Concertina is slower than HCTR2 on both chips. On the
+nRF52832, which has forward-only AES but no hash hardware, Concertina with
+HMAC-SHA-256 is not faster than HCTR2 with 8-bit POLYVAL tables; it is
+faster than a fully constant-time HCTR2 from 1024 bytes on for
+encryption and from 256 bytes on for decryption, and needs the
+least flash and no inverse cipher. Code size, RAM and operation counts are
+exact; the cycle counts are estimates, and the hardware backends have run
+against models of the peripherals only: confirming both on boards remains
+to be done.

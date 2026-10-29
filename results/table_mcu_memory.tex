@@ -1,0 +1,38 @@
+\begin{table}[!hbt]
+\caption{Memory footprint with AES-128, in bytes: flash for key setup, encryption and decryption (including the hardware drivers); static RAM (tables, DMA buffers); per-key context; peak stack depth; and their sum (RAM). Each configuration is built with only the backends it uses; on the nRF52832, the tables of HCTR2's table-based inverse cipher are kept in flash (one block per decryption), those of AES-XTS in RAM. Key setup in $\mu$s at 64~MHz, estimated as in Table~\ref{tab:mcu-speed}.}
+\label{tab:mcu-memory}
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{lrrrrrr}
+\hline
+Mode & Flash & Static & Context & Stack & RAM & Key setup \\
+\hline\hline
+\multicolumn{7}{l}{\emph{nRF52840: AES-128 and SHA-256 on the CryptoCell-310}} \\
+AES-XTS$^\dagger$                                    & 1{,}940 & 516 & 72 & 448 & 1{,}036 & 3.77 \\
+HCTR2, constant-time POLYVAL                         & 5{,}308 & 516 & 260 & 472 & 1{,}248 & 49.8 \\
+HCTR2, 4-bit POLYVAL tables                          & 2{,}864 & 516 & 372 & 320 & 1{,}208 & 64.1 \\
+HCTR2, 8-bit POLYVAL tables                          & 3{,}360 & 516 & 4{,}212 & 320 & 5{,}048 & 218 \\
+Concertina (HMAC-SHA-256)                            & 4{,}200 & 516 & 192 & 904 & 1{,}612 & 304 \\
+Concertina (HMAC-SHA3-256)                           & 7{,}656 & 516 & 536 & 1{,}908 & 2{,}960 & 3{,}998 \\
+\hline
+\multicolumn{7}{l}{\emph{nRF52832: forward AES-128 on the ECB peripheral}} \\
+AES-XTS$^\dagger$                                    & 2{,}268 & 1{,}592 & 232 & 496 & 2{,}320 & 76.5 \\
+HCTR2, table $\mathrm{AES}^{-1}$$^\ddagger$          & 7{,}100 & 48 & 420 & 472 & 940 & 121 \\
+HCTR2, constant-time $\mathrm{AES}^{-1}$$^\ddagger$  & 7{,}112 & 48 & 596 & 1{,}000 & 1{,}644 & 236 \\
+HCTR2, 4-bit POLYVAL tables                          & 4{,}656 & 48 & 532 & 336 & 916 & 135 \\
+HCTR2, 8-bit POLYVAL tables                          & 5{,}148 & 48 & 4{,}372 & 336 & 4{,}756 & 288 \\
+Concertina (HMAC-SHA-256)                            & 4{,}448 & 48 & 192 & 1{,}308 & 1{,}548 & 901 \\
+Concertina (HMAC-SHA3-256)                           & 7{,}224 & 48 & 536 & 1{,}908 & 2{,}492 & 3{,}998 \\
+\hline
+\multicolumn{7}{l}{\emph{Software only (nRF52840 build)}} \\
+AES-XTS$^\dagger$                                    & 2{,}716 & 2{,}312 & 584 & 320 & 3{,}216 & 111 \\
+HCTR2, constant-time POLYVAL                         & 6{,}636 & 2{,}312 & 596 & 472 & 3{,}380 & 158 \\
+HCTR2, 8-bit POLYVAL tables                          & 4{,}684 & 2{,}312 & 4{,}548 & 400 & 7{,}260 & 326 \\
+Concertina (HMAC-SHA-256)                            & 5{,}324 & 1{,}028 & 1{,}072 & 1{,}308 & 3{,}408 & 980 \\
+Concertina (HMAC-SHA3-256)                           & 8{,}096 & 1{,}028 & 1{,}416 & 1{,}908 & 4{,}352 & 4{,}077 \\
+\hline
+\multicolumn{7}{l}{\footnotesize $^\dagger$Narrow-block mode, listed as a reference only. $^\ddagger$With the constant-time POLYVAL.}
+\end{tabular}
+\end{table}

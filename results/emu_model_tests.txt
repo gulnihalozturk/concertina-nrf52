@@ -1,0 +1,17 @@
+  ok   reset values: HOST_SIGNATURE, AES_HW_FLAGS, HASH_HW_FLAGS, HASH_ENDIANNESS
+  ok   register access while ENABLE = 0 is reported
+  ok   AES-128 encryption, 3 blocks (FIPS 197 C.1)
+  ok   IRR: MEM_TO_DIN and DOUT_TO_MEM set
+  ok   latency charged: op + 3 blocks
+  ok   AES-128 decryption
+  ok   key words out of ascending order are reported
+  ok   DMA from flash: AHB error reported and IRR.AHB_ERR set
+  ok   AES with its clock disabled is reported
+  ok   unmodelled AES mode (CBC) is reported, not guessed
+  ok   SHA-256 compression, 1 block(s), HASH_H[i] = Hi
+  ok   SHA-256 compression, 2 block(s), HASH_H[i] = Hi
+  ok   hardware padding (not modelled) is reported
+  ok   HASH_H written out of descending order is reported
+  ok   SHA-256 transfer that is not whole blocks is reported
+  ok   DMA size above 2^16 - 1 is reported
+CryptoCell model tests: all passed

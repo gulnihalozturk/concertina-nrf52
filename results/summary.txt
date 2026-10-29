@@ -1,0 +1,97 @@
+== nrf52840: estimated cycles/byte, P=2, main latencies (enc | dec) ==
+  xts-cc                     171.8     91.3     30.9     21.3     16.6     13.0  |    171.8     91.3     30.9     21.3     16.6     13.0
+  hctr2-cc                   197.2    155.3    123.9    119.2    116.8    115.1  |    197.8    155.6    124.0    119.2    116.9    115.1
+  hctr2-t4-cc                220.2    184.2    157.2    153.2    151.2    149.7  |    220.8    184.5    157.3    153.2    151.2    149.7
+  hctr2-t8-cc                159.0    112.8     78.1     72.9     70.2     68.3  |    159.6    113.1     78.2     72.9     70.2     68.3
+  concertina-sha256-cc       272.4    146.2     48.3     30.8     22.1     15.5  |    272.6    146.3     48.3     30.8     22.1     15.5
+  concertina-sha3-cc        2076.9   1048.4    382.7    309.7    273.3    238.9  |   2077.1   1048.5    382.8    309.7    273.3    238.9
+  xts                         95.1     76.3     62.1     59.8     58.6     57.7  |     92.5     73.7     59.5     57.2     56.0     55.1
+  hctr2                      165.9    162.8    160.4    160.0    159.8    159.7  |    164.8    162.2    160.3    159.9    159.8    159.7
+  hctr2-t8                   127.8    120.3    114.6    113.7    113.2    112.9  |    126.6    119.7    114.5    113.6    113.2    112.9
+  concertina-sha256          581.7    320.0    187.4    165.0    153.8    145.4  |    581.9    320.1    187.4    165.0    153.8    145.4
+  concertina-sha3           2082.4   1070.3    422.9    352.4    317.2    283.8  |   2082.6   1070.4    422.9    352.4    317.2    283.8
+== nrf52840: hardware operations per message (exact) ==
+  xts-cc                  32:aes_op=2,aes_blk=3  64:aes_op=2,aes_blk=5  256:aes_op=2,aes_blk=17  512:aes_op=3,aes_blk=33  1024:aes_op=5,aes_blk=65  4096:aes_op=17,aes_blk=257
+  hctr2-cc                32:aes_op=2,aes_blk=2  64:aes_op=2,aes_blk=4  256:aes_op=2,aes_blk=16  512:aes_op=3,aes_blk=32  1024:aes_op=5,aes_blk=64  4096:aes_op=17,aes_blk=256
+  hctr2-t4-cc             32:aes_op=2,aes_blk=2  64:aes_op=2,aes_blk=4  256:aes_op=2,aes_blk=16  512:aes_op=3,aes_blk=32  1024:aes_op=5,aes_blk=64  4096:aes_op=17,aes_blk=256
+  hctr2-t8-cc             32:aes_op=2,aes_blk=2  64:aes_op=2,aes_blk=4  256:aes_op=2,aes_blk=16  512:aes_op=3,aes_blk=32  1024:aes_op=5,aes_blk=64  4096:aes_op=17,aes_blk=256
+  concertina-sha256-cc    32:aes_op=4,aes_blk=4,hash_op=4,hash_blk=4  64:aes_op=5,aes_blk=6,hash_op=4,hash_blk=4  256:aes_op=5,aes_blk=18,hash_op=6,hash_blk=10  512:aes_op=6,aes_blk=34,hash_op=6,hash_blk=18  1024:aes_op=8,aes_blk=66,hash_op=6,hash_blk=34  4096:aes_op=20,aes_blk=258,hash_op=6,hash_blk=130
+  concertina-sha3-cc      32:aes_op=4,aes_blk=4  64:aes_op=5,aes_blk=6  256:aes_op=5,aes_blk=18  512:aes_op=6,aes_blk=34  1024:aes_op=8,aes_blk=66  4096:aes_op=20,aes_blk=258
+== nrf52840: CPU instructions per byte (exact) and share of hardware time (P=2) ==
+  xts-cc                     103.8     54.1     16.8     10.8      7.8      5.6   hw share    5%    7%   14%   19%   23%   29%
+  hctr2-cc                   134.0    113.2     97.6     95.3     94.1     93.2   hw share    4%    4%    3%    3%    3%    3%
+  hctr2-t4-cc                151.8    134.7    121.8    120.0    119.0    118.3   hw share    3%    3%    3%    3%    3%    3%
+  hctr2-t8-cc                 99.2     73.3     53.9     50.9     49.4     48.3   hw share    5%    5%    5%    5%    5%    6%
+  concertina-sha256-cc       139.6     74.3     21.4     12.0      7.4      3.9   hw share   15%   16%   26%   34%   43%   56%
+  concertina-sha3-cc        1619.3    814.1    297.5    241.7    213.9    187.4   hw share    1%    1%    1%    1%    2%    2%
+== nrf52832: estimated cycles/byte, P=2, main latencies (enc | dec) ==
+  xts-ecb                     61.9     48.6     38.6     37.0     36.1     35.5  |     81.4     68.1     58.1     56.5     55.6     55.0
+  hctr2-ecb                  149.2    145.1    142.0    141.5    141.3    141.1  |    159.1    150.1    143.3    142.1    141.6    141.1
+  hctr2-t4-ecb               172.3    174.0    175.3    175.5    175.6    175.7  |    182.2    179.0    176.6    176.2    176.0    175.8
+  hctr2-t8-ecb               111.1    102.6     96.2     95.2     94.7     94.3  |    121.0    107.5     97.5     95.8     95.0     94.3
+  concertina-sha256-ecb      541.4    290.3    166.0    144.9    134.4    126.5  |    541.6    290.4    166.0    144.9    134.4    126.5
+  concertina-sha3-ecb       2042.1   1040.7    401.5    332.3    297.8    264.9  |   2042.3   1040.8    401.5    332.4    297.8    264.9
+  hctr2-ecb-ctdec            149.2    145.1    142.0    141.5    141.3    141.1  |    413.2    277.1    175.0    158.0    149.5    143.1
+  xts                         95.1     76.3     62.1     59.8     58.6     57.7  |     92.5     73.7     59.5     57.2     56.0     55.1
+  hctr2                      165.9    162.8    160.4    160.0    159.8    159.7  |    164.8    162.2    160.3    159.9    159.8    159.7
+  hctr2-t8                   127.8    120.3    114.6    113.7    113.2    112.9  |    126.6    119.7    114.5    113.6    113.2    112.9
+  concertina-sha256          581.7    320.0    187.4    165.0    153.8    145.4  |    581.9    320.1    187.4    165.0    153.8    145.4
+  concertina-sha3           2082.4   1070.3    422.9    352.4    317.2    283.8  |   2082.6   1070.4    422.9    352.4    317.2    283.8
+== nrf52832: hardware operations per message (exact) ==
+  xts-ecb                 32:ecb=3  64:ecb=5  256:ecb=17  512:ecb=33  1024:ecb=65  4096:ecb=257
+  hctr2-ecb               32:ecb=2  64:ecb=4  256:ecb=16  512:ecb=32  1024:ecb=64  4096:ecb=256
+  hctr2-t4-ecb            32:ecb=2  64:ecb=4  256:ecb=16  512:ecb=32  1024:ecb=64  4096:ecb=256
+  hctr2-t8-ecb            32:ecb=2  64:ecb=4  256:ecb=16  512:ecb=32  1024:ecb=64  4096:ecb=256
+  concertina-sha256-ecb   32:ecb=4  64:ecb=6  256:ecb=18  512:ecb=34  1024:ecb=66  4096:ecb=258
+  concertina-sha3-ecb     32:ecb=4  64:ecb=6  256:ecb=18  512:ecb=34  1024:ecb=66  4096:ecb=258
+== nrf52832: CPU instructions per byte (exact) and share of hardware time (P=2) ==
+  xts-ecb                     15.5     11.2      8.0      7.5      7.2      7.0   hw share   58%   62%   66%   67%   67%   68%
+  hctr2-ecb                   93.8     95.3     96.4     96.6     96.7     96.8   hw share   16%   17%   17%   17%   17%   17%
+  hctr2-t4-ecb               111.6    116.8    120.6    121.3    121.6    121.9   hw share   14%   14%   14%   14%   14%   14%
+  hctr2-t8-ecb                59.0     55.4     52.7     52.3     52.0     51.9   hw share   22%   23%   25%   25%   25%   25%
+  concertina-sha256-ecb      385.2    197.2    111.1     96.6     89.4     83.9   hw share    9%   12%   16%   18%   18%   19%
+  concertina-sha3-ecb       1577.1    793.2    295.5    242.7    216.3    190.9   hw share    2%    3%    7%    8%    8%    9%
+== speed-up HCTR2/Concertina-SHA-256 over P=1..3 x latency variants (min..max) ==
+  nrf52840 hctr2-cc        32:0.61..0.81 64:0.86..1.22 256:1.88..3.14 512:2.71..4.92 1024:3.55..6.99 4096:4.69..10.38
+  nrf52840 hctr2-t4-cc     32:0.68..0.90 64:1.02..1.43 256:2.41..3.91 512:3.53..6.19 1024:4.66..8.85 4096:6.10..13.20
+  nrf52840 hctr2-t8-cc     32:0.50..0.63 64:0.65..0.85 256:1.24..1.91 512:1.74..2.90 1024:2.24..4.05 4096:2.86..5.93
+  nrf52832 hctr2-ecb       32:0.26..0.30 64:0.48..0.53 256:0.83..0.88 512:0.96..1.00 1024:1.02..1.08 4096:1.08..1.15
+  nrf52832 hctr2-t4-ecb    32:0.31..0.33 64:0.59..0.61 256:1.03..1.07 512:1.17..1.24 1024:1.25..1.34 4096:1.32..1.44
+  nrf52832 hctr2-t8-ecb    32:0.19..0.23 64:0.33..0.39 256:0.55..0.62 512:0.63..0.70 1024:0.67..0.75 4096:0.72..0.79
+  nrf52832 hctr2-ecb-ctdec (dec) 32:0.71..0.80 64:0.89..1.00 256:1.01..1.10 512:1.05..1.13 1024:1.07..1.15 4096:1.09..1.17
+  nrf52840: Concertina faster than hctr2-cc at lengths ['64', '256', '512', '1024', '4096']
+  nrf52840: Concertina faster than hctr2-t4-cc at lengths ['64', '256', '512', '1024', '4096']
+  nrf52840: Concertina faster than hctr2-t8-cc at lengths ['256', '512', '1024', '4096']
+  nrf52832: Concertina faster than hctr2-ecb at lengths ['1024', '4096']
+  nrf52832: Concertina faster than hctr2-t4-ecb at lengths ['256', '512', '1024', '4096']
+  nrf52832: Concertina faster than hctr2-t8-ecb at lengths []
+  nrf52832: Concertina decrypts faster than hctr2-ecb-ctdec at lengths ['256', '512', '1024', '4096']
+  claim ok:   nRF52840: Concertina-SHA-256 faster than every HCTR2 variant from 256 B, all variants
+  claim ok:   nRF52840: HCTR2 (every variant) faster at 32 B, all variants
+  claim ok:   nRF52840: HMAC-SHA3-256 Concertina slower than every HCTR2 at every length (P=2)
+  claim ok:   nRF52832: Concertina-SHA-256 slower than HCTR2 table8 at every length, all variants
+  claim ok:   nRF52832: Concertina-SHA-256 needs the least flash of all HCTR2 configurations
+  claim ok:   nRF52832: Concertina RAM above HCTR2 with table AES^-1 (ct32, table4), below constant-time HCTR2 and table8
+  claim ok:   nRF52840: Concertina more stack, smaller context than every HCTR2 (CC)
+  claim ok:   Concertina HMAC-SHA3-256 slower than every HCTR2 at every length on nRF52832 (P=2)
+  claim ok:   constant-time minus table AES^-1 decryption: the same at every length
+  claim ok:   nRF52840: Concertina faster from the same length vs ct32 and table4 (P=2)
+  claim ok:   nRF52840 at 64 B: order vs ct32 depends on the assumptions; Concertina faster than table4 and slower than table8 under all
+== nRF52840 break-even (P=2, other latencies central) ==
+  vs hctr2-cc     SHA-256 cycles/block at break-even: 32:-451 64:297 256:2087 512:2665 1024:3005 4096:3287
+  vs hctr2-cc     transfer overhead at break-even:    32:-337 64:147 256:2215 512:5092 1024:10846 4096:45367
+  vs hctr2-t4-cc  SHA-256 cycles/block at break-even: 32:-266 64:759 256:2939 512:3633 1024:4041 4096:4379
+  vs hctr2-t4-cc  transfer overhead at break-even:    32:-214 64:412 256:3162 512:7027 1024:14758 4096:61140
+  vs hctr2-t8-cc  SHA-256 cycles/block at break-even: 32:-756 64:-384 256:915 512:1347 1024:1601 4096:1813
+  vs hctr2-t8-cc  transfer overhead at break-even:    32:-541 64:-241 256:913 512:2456 1024:5543 4096:24065
+  software SHA-256 compression (P=2): 2874 cycles/block
+  POLYVAL break-even per block at 256 B: 228.5, 229.5, 229.5
+  POLYVAL break-even per block at 1024 B: 89.0, 87.7, 87.7
+  claim ok:   POLYVAL break-even at 4096 B below 64 loads + 64 XORs (128 cycles) under all assumptions
+  POLYVAL break-even per block at 4096 B: 55.1, 53.3, 53.3
+  decryption vs encryption nrf52832 hctr2-ecb: +6.6% +3.4% +0.9% +0.4% +0.2% +0.1%
+  decryption vs encryption nrf52832 hctr2-ecb-ctdec: +176.9% +90.9% +23.2% +11.7% +5.8% +1.5%
+  decryption vs encryption nrf52840 hctr2-cc: +0.3% +0.2% +0.1% +0.0% +0.0% +0.0%
+  constant-time vs table inverse cipher, extra cycles per message: [8131, 8131, 8131, 8131, 8131, 8131]
+  cycles per instruction (model, P=1..3, all main modes): 1.18..1.90
+wrote paper/appendix_mcu.tex

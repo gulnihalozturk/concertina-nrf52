@@ -1,0 +1,351 @@
+
+=== Concertina and HCTR2 (tweakable wide-block modes) on nRF52840-EMU0, Cortex-M4F @ 64 MHz ===
+build Oct 29 2026 15:22:25, gcc 13.2.1 20231009
+Self-tests:
+  AES-128/192/256 software, FIPS 197 App. C    ok (3 checks)
+  AES^-1 software, 128-256: FIPS 197, round trips ok (102 checks)
+  AES^-1 constant-time, 128-256: FIPS 197, round trips ok (102 checks)
+  AES^-1 CryptoCell: FIPS 197, round trips     ok (98 checks)
+  AES-128 ECB: FIPS 197, vs software           ok (91 checks)
+  AES-128 CryptoCell: FIPS 197, vs software    ok (91 checks)
+  SHA3-256 / Keccak-f[1600] (both backends)    ok (36 checks)
+  SHA-256 (software x2, CryptoCell)            ok (27 checks)
+  Hashes, HMAC: 90 known answers (+CryptoCell) ok (1125 checks)
+  Concertina: 90 known answers (all backends)  ok (960 checks)
+                                               30 with ECB, 30 with CryptoCell AES (+SHA-256)
+  POLYVAL: 96 vectors (ct32, ct64, table4, table8) ok (656 checks)
+  XCTR: 180 official vectors (all AES backends) ok (280 checks)
+  HCTR2: 700 official vectors (all backends)   ok (9800 checks)
+  AES-XTS: 14 known answers (all AES backends) ok (56 checks)
+Self-tests: all passed (13427 checks, 0 failures)
+
+Example (HMAC-SHA3-256, AES-128, 64 bytes, tweak ...07):
+  plaintext : Concertina on nRF52840: 64-byte wide-block example!
+  ciphertext: 2d654f1c4c0537c328fb55b86bae67b34a5ae3409763b8a5ad36f1bd22a603b9
+              76c236746b76dfc187ccd9afe9a6350d40aaff4f86d737746047b80086e45c75
+  decrypted : matches (54301 + 54300 cycles)
+  last plaintext bit flipped: 4 of 4 ciphertext blocks changed
+
+Benchmark: AES-128, 16-byte tweak, minimum of 15 runs, counter at 64000000 Hz (read overhead 5 cycles subtracted)
+Hardware: ECB peripheral yes, CryptoCell-310 yes
+
+Primitives (AES-128)                              cycles
+  AES key expansion (encryption)                    883
+CSV,prim-aes-setkey,16,883,0
+  AES block encryption, software                    673
+CSV,prim-aes-enc,16,673,0
+  AES key expansion (inverse, table)               3837
+CSV,prim-aes-setkey-dec,16,3837,0
+  AES block decryption, table                       637
+CSV,prim-aes-dec,16,637,0
+  AES key expansion (inverse, constant-time)       8276
+CSV,prim-aes-setkey-dec-ct,16,8276,0
+  AES block decryption, constant-time              6628
+CSV,prim-aes-dec-ct,16,6628,0
+  AES block encryption, ECB peripheral              522
+CSV,prim-aes-ecb,16,522,0
+  AES block encryption, CryptoCell (1 block)        220
+CSV,prim-aes-cc,16,220,0
+  AES CTR, CryptoCell, per block (16 per DMA)       185
+CSV,prim-aes-cc-ctr16,16,185,0
+  AES block decryption, CryptoCell                  220
+CSV,prim-aes-dec-cc,16,220,0
+  SHA-256 compression, CryptoCell (1 block)         359
+CSV,prim-sha256-cc-block,64,359,0
+  SHA-256 compression, CryptoCell (per block of 16)      164
+CSV,prim-sha256-cc-block16,64,164,0
+  Keccak-f[1600], bit-interleaved 32-bit          10921
+CSV,prim-keccak-bi32,200,10921,0
+  Keccak-f[1600], 64-bit reference                14239
+CSV,prim-keccak-ref64,200,14239,0
+  SHA-256 compression, unrolled (per block)        2435
+CSV,prim-sha256-block,64,2435,0
+  SHA-256 compression, reference (per block)       3029
+CSV,prim-sha256-ref-block,64,3029,0
+  POLYVAL ct32 (per 16-byte block)                  725
+CSV,prim-polyval-ct32,16,725,0
+  POLYVAL ct64 (per 16-byte block)                 2330
+CSV,prim-polyval-ct64,16,2330,0
+  POLYVAL table4 key setup                          529
+CSV,prim-polyval-t4-setkey,16,529,0
+  POLYVAL table4 (per 16-byte block)                925
+CSV,prim-polyval-t4,16,925,0
+  POLYVAL table8 key setup                         7785
+CSV,prim-polyval-t8-setkey,16,7785,0
+  POLYVAL table8 (per 16-byte block)                364
+CSV,prim-polyval-t8,16,364,0
+
+Encryption, cycles per byte (AES-128)
+  mode                                          32      64     256     512    1024    4096
+  AES-XTS                                     72.8    59.0    48.6    46.9    46.1    45.4
+  HCTR2, POLYVAL ct32                        128.8   131.0   132.7   133.0   133.1   133.2
+  HCTR2, POLYVAL table4                      146.6   152.5   156.9   157.6   158.0   158.3
+  HCTR2, POLYVAL table8                       94.0    91.1    89.0    88.6    88.4    88.3
+  HCTR2, POLYVAL ct64 (AArch64 code)         279.3   306.6   327.0   330.5   332.2   333.4
+  Concertina, HMAC-SHA3-256                 1651.1   848.6   336.7   281.5   253.9   227.6
+  Concertina, HMAC-SHA-256                   459.2   252.6   152.3   135.4   127.0   120.6
+  Concertina, SHA3, 64-bit Keccak (AArch64)  1960.8  1003.4   395.9   330.0   297.1   265.7
+  Concertina, SHA-256, rolled loop (AArch64)   533.5   289.8   175.5   156.3   146.7   139.5
+  AES-XTS, ECB (dec: table)                   58.7    47.2    38.6    37.2    36.5    35.9
+  HCTR2 ct32, ECB, dec: table                122.6   124.1   125.2   125.4   125.5   125.6
+  HCTR2 ct32, ECB, dec: constant-time        122.6   124.1   125.2   125.4   125.5   125.6
+  HCTR2 table4, ECB, dec: table              140.4   145.6   149.5   150.1   150.4   150.7
+  HCTR2 table8, ECB, dec: table               87.8    84.2    81.5    81.1    80.8    80.7
+  Concertina, SHA3 (sw), ECB                1634.7   836.4   327.9   273.3   246.0   219.9
+  Concertina, SHA-256 (sw), ECB              442.8   240.5   143.6   127.2   119.1   112.9
+  AES-XTS, CryptoCell                        113.1    60.4    21.0    14.8    11.7     9.3
+  HCTR2 ct32, CryptoCell AES                 141.5   118.7   101.6    99.2    97.9    97.0
+  HCTR2 table4, CryptoCell AES               159.3   140.2   125.8   123.8   122.8   122.1
+  HCTR2 table8, CryptoCell AES               106.8    78.8    57.9    54.8    53.2    52.1
+  Concertina, SHA3 (sw), CryptoCell AES     1634.3   824.4   302.7   246.2   218.0   191.2
+  Concertina, SHA-256+AES CryptoCell         181.5    98.0    33.9    22.6    16.9    12.6
+
+Decryption, cycles per byte (AES-128)
+  mode                                          32      64     256     512    1024    4096
+  AES-XTS                                     70.7    56.8    46.5    44.7    43.9    43.2
+  HCTR2, POLYVAL ct32                        127.7   130.5   132.6   132.9   133.1   133.2
+  HCTR2, POLYVAL table4                      145.5   151.9   156.8   157.6   158.0   158.3
+  HCTR2, POLYVAL table8                       92.9    90.6    88.8    88.5    88.4    88.3
+  HCTR2, POLYVAL ct64 (AArch64 code)         278.2   306.0   326.9   330.4   332.1   333.4
+  Concertina, HMAC-SHA3-256                 1651.1   848.6   336.7   281.5   253.9   227.6
+  Concertina, HMAC-SHA-256                   459.2   252.6   152.3   135.4   127.0   120.6
+  Concertina, SHA3, 64-bit Keccak (AArch64)  1960.8  1003.4   395.9   330.0   297.1   265.7
+  Concertina, SHA-256, rolled loop (AArch64)   533.5   289.8   175.5   156.3   146.7   139.5
+  AES-XTS, ECB (dec: table)                   65.9    54.5    45.9    44.4    43.7    43.2
+  HCTR2 ct32, ECB, dec: table                126.2   125.9   125.7   125.7   125.6   125.6
+  HCTR2 ct32, ECB, dec: constant-time        313.4   219.5   149.1   137.4   131.5   127.1
+  HCTR2 table4, ECB, dec: table              144.0   147.4   149.9   150.3   150.5   150.7
+  HCTR2 table8, ECB, dec: table               91.4    86.0    82.0    81.3    81.0    80.7
+  Concertina, SHA3 (sw), ECB                1634.7   836.4   327.9   273.3   246.0   219.9
+  Concertina, SHA-256 (sw), ECB              442.8   240.5   143.6   127.2   119.1   112.9
+  AES-XTS, CryptoCell                        113.2    60.5    21.0    14.8    11.7     9.3
+  HCTR2 ct32, CryptoCell AES                 141.6   118.8   101.6    99.2    97.9    97.0
+  HCTR2 table4, CryptoCell AES               159.4   140.2   125.9   123.8   122.8   122.1
+  HCTR2 table8, CryptoCell AES               106.8    78.9    57.9    54.8    53.2    52.1
+  Concertina, SHA3 (sw), CryptoCell AES     1634.3   824.4   302.7   246.2   218.0   191.2
+  Concertina, SHA-256+AES CryptoCell         181.5    98.0    33.9    22.6    16.9    12.6
+
+Key setup and memory
+  mode                                      setup cyc    ctx B  stk set  stk enc
+  AES-XTS                                        5618     1032      336      468
+  HCTR2, POLYVAL ct32                            7821     4932      432      432
+  HCTR2, POLYVAL table4                          8634     4932      432      416
+  HCTR2, POLYVAL table8                         14768     4932      432      432
+  HCTR2, POLYVAL ct64 (AArch64 code)            10954     4932      432      536
+  Concertina, HMAC-SHA3-256                    206775     1736     1924     1412
+  Concertina, HMAC-SHA-256                      52657     1736     1540     1028
+  Concertina, SHA3, 64-bit Keccak (AArch64)     247003     1736     1952     1440
+  Concertina, SHA-256, rolled loop (AArch64)      62181     1736     1540     1028
+  AES-XTS, ECB (dec: table)                      3956     1032      336      436
+  HCTR2 ct32, ECB, dec: table                    6688     4932      432      432
+  HCTR2 ct32, ECB, dec: constant-time           11127     4932     1264      432
+  HCTR2 table4, ECB, dec: table                  7501     4932      432      416
+  HCTR2 table8, ECB, dec: table                 13635     4932      432      432
+  Concertina, SHA3 (sw), ECB                   202620     1736     1924     1412
+  Concertina, SHA-256 (sw), ECB                 48502     1736     1540     1028
+  AES-XTS, CryptoCell                             161     1032       48      488
+  HCTR2 ct32, CryptoCell AES                     2292     4932      296      432
+  HCTR2 table4, CryptoCell AES                   3105     4932      280      416
+  HCTR2 table8, CryptoCell AES                   9239     4932      296      432
+  Concertina, SHA3 (sw), CryptoCell AES        202605     1736     1924     1412
+  Concertina, SHA-256+AES CryptoCell            15095     1736     1256      744
+CSV,xts,32,2331,2261
+CSV,xts,64,3777,3637
+CSV,xts,256,12453,11893
+CSV,xts,512,24021,22901
+CSV,xts,1024,47157,44917
+CSV,xts,4096,185973,177013
+CSV,xts,setup,5618,0
+CSV,xts,ctx,1032,0
+CSV,xts,stack,336,468
+CSV,hctr2,32,4121,4086
+CSV,hctr2,64,8385,8350
+CSV,hctr2,256,33969,33934
+CSV,hctr2,512,68081,68046
+CSV,hctr2,1024,136305,136270
+CSV,hctr2,4096,545649,545614
+CSV,hctr2,setup,7821,0
+CSV,hctr2,ctx,4932,0
+CSV,hctr2,stack,432,432
+CSV,hctr2-t4,32,4691,4656
+CSV,hctr2-t4,64,9759,9724
+CSV,hctr2-t4,256,40167,40132
+CSV,hctr2-t4,512,80711,80676
+CSV,hctr2-t4,1024,161799,161764
+CSV,hctr2-t4,4096,648327,648292
+CSV,hctr2-t4,setup,8634,0
+CSV,hctr2-t4,ctx,4932,0
+CSV,hctr2-t4,stack,432,416
+CSV,hctr2-t8,32,3008,2973
+CSV,hctr2-t8,64,5832,5797
+CSV,hctr2-t8,256,22776,22741
+CSV,hctr2-t8,512,45368,45333
+CSV,hctr2-t8,1024,90552,90517
+CSV,hctr2-t8,4096,361656,361621
+CSV,hctr2-t8,setup,14768,0
+CSV,hctr2-t8,ctx,4932,0
+CSV,hctr2-t8,stack,432,432
+CSV,hctr2-ct64,32,8936,8901
+CSV,hctr2-ct64,64,19620,19585
+CSV,hctr2-ct64,256,83724,83689
+CSV,hctr2-ct64,512,169196,169161
+CSV,hctr2-ct64,1024,340140,340105
+CSV,hctr2-ct64,4096,1365804,1365769
+CSV,hctr2-ct64,setup,10954,0
+CSV,hctr2-ct64,ctx,4932,0
+CSV,hctr2-ct64,stack,432,536
+CSV,concertina-sha3,32,52835,52835
+CSV,concertina-sha3,64,54308,54308
+CSV,concertina-sha3,256,86192,86192
+CSV,concertina-sha3,512,144128,144128
+CSV,concertina-sha3,1024,260024,260024
+CSV,concertina-sha3,4096,932300,932300
+CSV,concertina-sha3,setup,206775,0
+CSV,concertina-sha3,ctx,1736,0
+CSV,concertina-sha3,stack,1924,1412
+CSV,concertina-sha256,32,14693,14693
+CSV,concertina-sha256,64,16166,16166
+CSV,concertina-sha256,256,38990,38990
+CSV,concertina-sha256,512,69334,69334
+CSV,concertina-sha256,1024,130022,130022
+CSV,concertina-sha256,4096,494150,494150
+CSV,concertina-sha256,setup,52657,0
+CSV,concertina-sha256,ctx,1736,0
+CSV,concertina-sha256,stack,1540,1028
+CSV,concertina-sha3-ref64,32,62747,62747
+CSV,concertina-sha3-ref64,64,64220,64220
+CSV,concertina-sha3-ref64,256,101350,101350
+CSV,concertina-sha3-ref64,512,168970,168970
+CSV,concertina-sha3-ref64,1024,304234,304234
+CSV,concertina-sha3-ref64,4096,1088280,1088280
+CSV,concertina-sha3-ref64,setup,247003,0
+CSV,concertina-sha3-ref64,ctx,1736,0
+CSV,concertina-sha3-ref64,stack,1952,1440
+CSV,concertina-sha256-ref,32,17073,17073
+CSV,concertina-sha256-ref,64,18546,18546
+CSV,concertina-sha256-ref,256,44934,44934
+CSV,concertina-sha256-ref,512,80022,80022
+CSV,concertina-sha256-ref,1024,150198,150198
+CSV,concertina-sha256-ref,4096,571254,571254
+CSV,concertina-sha256-ref,setup,62181,0
+CSV,concertina-sha256-ref,ctx,1736,0
+CSV,concertina-sha256-ref,stack,1540,1028
+CSV,xts-ecb,32,1878,2110
+CSV,xts-ecb,64,3022,3486
+CSV,xts-ecb,256,9886,11742
+CSV,xts-ecb,512,19038,22750
+CSV,xts-ecb,1024,37342,44766
+CSV,xts-ecb,4096,147166,176862
+CSV,xts-ecb,setup,3956,0
+CSV,xts-ecb,ctx,1032,0
+CSV,xts-ecb,stack,336,436
+CSV,hctr2-ecb,32,3923,4039
+CSV,hctr2-ecb,64,7943,8059
+CSV,hctr2-ecb,256,32063,32179
+CSV,hctr2-ecb,512,64223,64339
+CSV,hctr2-ecb,1024,128543,128659
+CSV,hctr2-ecb,4096,514463,514579
+CSV,hctr2-ecb,setup,6688,0
+CSV,hctr2-ecb,ctx,4932,0
+CSV,hctr2-ecb,stack,432,432
+CSV,hctr2-ecb-ctdec,32,3923,10030
+CSV,hctr2-ecb-ctdec,64,7943,14050
+CSV,hctr2-ecb-ctdec,256,32063,38170
+CSV,hctr2-ecb-ctdec,512,64223,70330
+CSV,hctr2-ecb-ctdec,1024,128543,134650
+CSV,hctr2-ecb-ctdec,4096,514463,520570
+CSV,hctr2-ecb-ctdec,setup,11127,0
+CSV,hctr2-ecb-ctdec,ctx,4932,0
+CSV,hctr2-ecb-ctdec,stack,1264,432
+CSV,hctr2-t4-ecb,32,4493,4609
+CSV,hctr2-t4-ecb,64,9317,9433
+CSV,hctr2-t4-ecb,256,38261,38377
+CSV,hctr2-t4-ecb,512,76853,76969
+CSV,hctr2-t4-ecb,1024,154037,154153
+CSV,hctr2-t4-ecb,4096,617141,617257
+CSV,hctr2-t4-ecb,setup,7501,0
+CSV,hctr2-t4-ecb,ctx,4932,0
+CSV,hctr2-t4-ecb,stack,432,416
+CSV,hctr2-t8-ecb,32,2810,2926
+CSV,hctr2-t8-ecb,64,5390,5506
+CSV,hctr2-t8-ecb,256,20870,20986
+CSV,hctr2-t8-ecb,512,41510,41626
+CSV,hctr2-t8-ecb,1024,82790,82906
+CSV,hctr2-t8-ecb,4096,330470,330586
+CSV,hctr2-t8-ecb,setup,13635,0
+CSV,hctr2-t8-ecb,ctx,4932,0
+CSV,hctr2-t8-ecb,stack,432,432
+CSV,concertina-sha3-ecb,32,52311,52311
+CSV,concertina-sha3-ecb,64,53532,53532
+CSV,concertina-sha3-ecb,256,83952,83952
+CSV,concertina-sha3-ecb,512,139936,139936
+CSV,concertina-sha3-ecb,1024,251928,251928
+CSV,concertina-sha3-ecb,4096,900780,900780
+CSV,concertina-sha3-ecb,setup,202620,0
+CSV,concertina-sha3-ecb,ctx,1736,0
+CSV,concertina-sha3-ecb,stack,1924,1412
+CSV,concertina-sha256-ecb,32,14169,14169
+CSV,concertina-sha256-ecb,64,15390,15390
+CSV,concertina-sha256-ecb,256,36750,36750
+CSV,concertina-sha256-ecb,512,65142,65142
+CSV,concertina-sha256-ecb,1024,121926,121926
+CSV,concertina-sha256-ecb,4096,462630,462630
+CSV,concertina-sha256-ecb,setup,48502,0
+CSV,concertina-sha256-ecb,ctx,1736,0
+CSV,concertina-sha256-ecb,stack,1540,1028
+CSV,xts-cc,32,3618,3621
+CSV,xts-cc,64,3868,3871
+CSV,xts-cc,256,5368,5371
+CSV,xts-cc,512,7563,7566
+CSV,xts-cc,1024,11953,11956
+CSV,xts-cc,4096,38293,38296
+CSV,xts-cc,setup,161,0
+CSV,xts-cc,ctx,1032,0
+CSV,xts-cc,stack,48,488
+CSV,hctr2-cc,32,4529,4530
+CSV,hctr2-cc,64,7599,7600
+CSV,hctr2-cc,256,26019,26020
+CSV,hctr2-cc,512,50771,50772
+CSV,hctr2-cc,1024,100275,100276
+CSV,hctr2-cc,4096,397299,397300
+CSV,hctr2-cc,setup,2292,0
+CSV,hctr2-cc,ctx,4932,0
+CSV,hctr2-cc,stack,296,432
+CSV,hctr2-t4-cc,32,5099,5100
+CSV,hctr2-t4-cc,64,8973,8974
+CSV,hctr2-t4-cc,256,32217,32218
+CSV,hctr2-t4-cc,512,63401,63402
+CSV,hctr2-t4-cc,1024,125769,125770
+CSV,hctr2-t4-cc,4096,499977,499978
+CSV,hctr2-t4-cc,setup,3105,0
+CSV,hctr2-t4-cc,ctx,4932,0
+CSV,hctr2-t4-cc,stack,280,416
+CSV,hctr2-t8-cc,32,3416,3417
+CSV,hctr2-t8-cc,64,5046,5047
+CSV,hctr2-t8-cc,256,14826,14827
+CSV,hctr2-t8-cc,512,28058,28059
+CSV,hctr2-t8-cc,1024,54522,54523
+CSV,hctr2-t8-cc,4096,213306,213307
+CSV,hctr2-t8-cc,setup,9239,0
+CSV,hctr2-t8-cc,ctx,4932,0
+CSV,hctr2-t8-cc,stack,296,432
+CSV,concertina-sha3-cc,32,52298,52298
+CSV,concertina-sha3-cc,64,52759,52759
+CSV,concertina-sha3-cc,256,77479,77479
+CSV,concertina-sha3-cc,512,126058,126058
+CSV,concertina-sha3-cc,1024,223240,223240
+CSV,concertina-sha3-cc,4096,783232,783232
+CSV,concertina-sha3-cc,setup,202605,0
+CSV,concertina-sha3-cc,ctx,1736,0
+CSV,concertina-sha3-cc,stack,1924,1412
+CSV,concertina-sha256-cc,32,5808,5808
+CSV,concertina-sha256-cc,64,6269,6269
+CSV,concertina-sha256-cc,256,8691,8691
+CSV,concertina-sha256-cc,512,11550,11550
+CSV,concertina-sha256-cc,1024,17268,17268
+CSV,concertina-sha256-cc,4096,51576,51576
+CSV,concertina-sha256-cc,setup,15095,0
+CSV,concertina-sha256-cc,ctx,1736,0
+CSV,concertina-sha256-cc,stack,1256,744
+
+DONE: PASS

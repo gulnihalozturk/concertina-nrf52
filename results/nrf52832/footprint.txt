@@ -1,0 +1,16 @@
+Footprint on nrf52832 (-O2 -fno-schedule-insns, AES-128), bytes, baseline subtracted (baseline: flash 3968, static RAM 4368)
+  mode                                   flash  tables    ctx  stack    RAM    setup  est.cyc   stack: setup/enc/dec
+  AES-XTS                                 2716    2312    584    320   3216     4695     7098   320/148/148
+  HCTR2, POLYVAL ct32                     6636    2312    596    472   3380     7249    10146   400/472/472
+  HCTR2, POLYVAL table4                   4192    2312    708    400   3420     7862    11062   400/308/308
+  HCTR2, POLYVAL table8                   4684    2312   4548    400   7260    14016    20883   400/308/308
+  Concertina (HMAC-SHA3-256)              8096    1028   1416   1908   4352   205645   260896   1908/1380/1380
+  Concertina (HMAC-SHA-256)               5324    1028   1072   1308   3408    49299    62716   1308/1116/1116
+  AES-XTS, ECB (dec: table)               2268    1592    232    496   2320     3141     4898   496/92/124
+  HCTR2 ct32, ECB, dec: table             7100      48    420    472    940     5606     7723   360/472/472
+  HCTR2 ct32, ECB, dec: constant-time     7112      48    596   1000   1644    11069    15134   1000/472/472
+  HCTR2 table4, ECB, dec: table           4656      48    532    336    916     6219     8637   336/308/308
+  HCTR2 table8, ECB, dec: table           5148      48   4372    336   4756    12373    18458   336/308/308
+  Concertina (SHA3 sw), ECB               7224      48    536   1908   2492   202336   255857   1908/1380/1380
+  Concertina (SHA-256 sw), ECB            4448      48    192   1308   1548    45989    57676   1308/1116/1116
+wrote results/nrf52832/footprint.csv

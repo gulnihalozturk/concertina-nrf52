@@ -1,0 +1,7 @@
+# Python packages for the emulator (emu/), the footprint and table tools
+# (tools/) and the Concertina reference model (python/). Versions used for the
+# published results:
+unicorn==2.1.4
+capstone==5.0.7
+pyelftools==0.33
+cryptography==50.0.1

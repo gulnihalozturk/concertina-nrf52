@@ -1,0 +1,36 @@
+# Builds the firmware for both chips with the same toolchain as the published
+# results (GCC 13.2.1, Ubuntu 24.04 package), runs the portable code natively,
+# tests the CryptoCell model, and runs every self-test of both firmware images
+# in the emulator (ECB and CryptoCell backends included). The full benchmark
+# (make results) takes about 10 minutes and is not run here.
+name: ci
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi
+          arm-none-eabi-gcc --version | head -1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Python packages
+        run: pip install -r requirements.txt
+      - name: Host build and self-tests
+        run: make host
+      - name: CryptoCell model tests
+        run: python3 emu/test_cryptocell.py
+      - name: Firmware self-tests in the emulator (nRF52840, nRF52832)
+        run: |
+          for chip in nrf52840 nrf52832; do
+            make CHIP=$chip B=build/$chip-selftest RUN_BENCHMARKS=0 all
+            python3 emu/nrf52_emu.py --chip $chip build/$chip-selftest/concertina.elf
+          done
+      - name: Benchmark firmware builds
+        run: |
+          make CHIP=nrf52840
+          make CHIP=nrf52832

@@ -1,0 +1,40 @@
+\begin{table}[!hbt]
+\caption{Decryption cost on the nRF52840 and the nRF52832 (Arm Cortex-M4F, 64~MHz) with AES-128 and a 16-byte tweak, in estimated cycles per byte: the CPU cycles of the executed instructions under the Cortex-M4 timing model ($P = 2$), plus the latency of each hardware operation (CryptoCell-310: central profile of Table~\ref{tab:mcu-latency}; ECB peripheral: typical $t_\mathrm{ECB}$ of 6~$\mu$s). The software rows are the same on both chips.}
+\label{tab:mcu-dec}
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrrrrr}
+\hline
+ & \multicolumn{6}{c}{Message length (bytes)} \\
+Mode & 32 & 64 & 256 & 512 & 1024 & 4096 \\
+\hline\hline
+\multicolumn{7}{l}{\emph{nRF52840: AES-128 and SHA-256 on the CryptoCell-310}} \\
+AES-XTS$^\dagger$                                    & 172 & 91.3 & 30.9 & 21.3 & 16.6 & 13.0 \\
+HCTR2, constant-time POLYVAL                         & 198 & 156 & 124 & 119 & 117 & 115 \\
+HCTR2, 4-bit POLYVAL tables                          & 221 & 185 & 157 & 153 & 151 & 150 \\
+HCTR2, 8-bit POLYVAL tables                          & 160 & 113 & 78.2 & 72.9 & 70.2 & 68.3 \\
+Concertina (HMAC-SHA-256)                            & 273 & 146 & 48.3 & 30.8 & 22.1 & 15.5 \\
+Concertina (HMAC-SHA3-256)                           & 2077 & 1049 & 383 & 310 & 273 & 239 \\
+\hline
+\multicolumn{7}{l}{\emph{nRF52832: forward AES-128 on the ECB peripheral}} \\
+AES-XTS$^\dagger$                                    & 81.4 & 68.1 & 58.1 & 56.5 & 55.6 & 55.0 \\
+HCTR2, table $\mathrm{AES}^{-1}$$^\ddagger$          & 159 & 150 & 143 & 142 & 142 & 141 \\
+HCTR2, constant-time $\mathrm{AES}^{-1}$$^\ddagger$  & 413 & 277 & 175 & 158 & 150 & 143 \\
+HCTR2, 4-bit POLYVAL tables                          & 182 & 179 & 177 & 176 & 176 & 176 \\
+HCTR2, 8-bit POLYVAL tables                          & 121 & 108 & 97.5 & 95.8 & 95.0 & 94.3 \\
+Concertina (HMAC-SHA-256)                            & 542 & 290 & 166 & 145 & 134 & 127 \\
+Concertina (HMAC-SHA3-256)                           & 2042 & 1041 & 401 & 332 & 298 & 265 \\
+\hline
+\multicolumn{7}{l}{\emph{Software only (either chip)}} \\
+AES-XTS$^\dagger$                                    & 92.5 & 73.7 & 59.5 & 57.2 & 56.0 & 55.1 \\
+HCTR2, constant-time POLYVAL                         & 165 & 162 & 160 & 160 & 160 & 160 \\
+HCTR2, 8-bit POLYVAL tables                          & 127 & 120 & 114 & 114 & 113 & 113 \\
+Concertina (HMAC-SHA-256)                            & 582 & 320 & 187 & 165 & 154 & 145 \\
+Concertina (HMAC-SHA3-256)                           & 2083 & 1070 & 423 & 352 & 317 & 284 \\
+\hline
+\multicolumn{7}{l}{\footnotesize $^\dagger$Narrow-block mode, listed as a reference only.} \\
+\multicolumn{7}{l}{\footnotesize $^\ddagger$With the constant-time POLYVAL.}
+\end{tabular}
+\end{table}

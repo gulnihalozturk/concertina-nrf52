@@ -1,0 +1,29 @@
+
+=== Concertina and HCTR2 (tweakable wide-block modes) on nRF52840-EMU0, Cortex-M4F @ 64 MHz ===
+build Oct 29 2026 15:27:24, gcc 13.2.1 20231009
+Self-tests (all HMAC split points):
+  AES-128/192/256 software, FIPS 197 App. C    ok (3 checks)
+  AES^-1 software, 128-256: FIPS 197, round trips ok (102 checks)
+  AES^-1 constant-time, 128-256: FIPS 197, round trips ok (102 checks)
+  AES^-1 CryptoCell: FIPS 197, round trips     ok (98 checks)
+  AES-128 ECB: FIPS 197, vs software           ok (91 checks)
+  AES-128 CryptoCell: FIPS 197, vs software    ok (91 checks)
+  SHA3-256 / Keccak-f[1600] (both backends)    ok (36 checks)
+  SHA-256 (software x2, CryptoCell)            ok (27 checks)
+  Hashes, HMAC: 90 known answers (+CryptoCell) ok (11970 checks)
+  Concertina: 90 known answers (all backends)  ok (960 checks)
+                                               30 with ECB, 30 with CryptoCell AES (+SHA-256)
+  POLYVAL: 96 vectors (ct32, ct64, table4, table8) ok (656 checks)
+  XCTR: 180 official vectors (all AES backends) ok (280 checks)
+  HCTR2: 700 official vectors (all backends)   ok (9800 checks)
+  AES-XTS: 14 known answers (all AES backends) ok (56 checks)
+Self-tests: all passed (24272 checks, 0 failures)
+
+Example (HMAC-SHA3-256, AES-128, 64 bytes, tweak ...07):
+  plaintext : Concertina on nRF52840: 64-byte wide-block example!
+  ciphertext: 2d654f1c4c0537c328fb55b86bae67b34a5ae3409763b8a5ad36f1bd22a603b9
+              76c236746b76dfc187ccd9afe9a6350d40aaff4f86d737746047b80086e45c75
+  decrypted : matches (54301 + 54300 cycles)
+  last plaintext bit flipped: 4 of 4 ciphertext blocks changed
+
+DONE: PASS
